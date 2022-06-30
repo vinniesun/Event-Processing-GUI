@@ -207,9 +207,6 @@ void refractoryFiltering(Events &currentEvent, Events &outputEvent, int ref_peri
             outputEvent.p.push_back(currentEvent.p[i]);
             ref_mask[currentEvent.y[i]][currentEvent.x[i]] = currentEvent.t[i];
         }
-        // if ((i+1)%15119 == 0) {
-        //     std::cout << outputEvent.x.size() << std::endl;
-        // }
     }
 }
 
@@ -262,11 +259,51 @@ void nnFiltering(Events &currentEvent, Events &outputEvent, int nn_window) {
         x_prev = x;
         y_prev = y;
         p_prev = p;
-
-        // if ((i+1) == 15118 || (i+1) == 30237 || (i+1) == 45356 || (i+1) == 60475 || (i+1) == 75594) {
-        //     std::cout << outputEvent.x.size() << std::endl;
-        // }
     }
+}
+
+bool refractoryFiltering_live(std::vector<std::vector<int>> &ref_mask_, const int x, const int y, const int t, const bool p, const int ref_period) {
+    if (t - ref_mask_[y][x] > ref_period) {
+        ref_mask_[y][x] = t;
+        return true;
+    } else return false;
+}
+
+bool nnFiltering_live(std::vector<std::vector<int>> &nn_mask_, const int x, const int y, const int t, const bool p, int &x_prev, int &y_prev, int &p_prev, const int max_x, const int max_y, const int nn_window) {
+    bool isActive = false;
+
+    int max_x_ = max_x - 1;
+    int max_y_ = max_y - 1;
+
+    if (x_prev != x || y_prev != y || p_prev != p) {
+        nn_mask_[y][x] = -nn_window;
+        
+        auto min_x_sub = std::max(0, x-1);
+        auto max_x_sub = std::min(max_x_, x+1);
+        auto min_y_sub = std::max(0, y-1);
+        auto max_y_sub = std::min(max_y_, y+1);
+
+        std::vector<int> temp;
+        for (int j = min_y_sub; j < max_y_sub+1; j++) {
+            for (int k = min_x_sub; k < max_x_sub+1; k++) {
+                temp.push_back(nn_mask_[j][k]);
+            }
+        }
+
+        for (auto& v:temp) {
+            v = t - v;
+        }
+
+        int t_min = *std::min_element(temp.begin(), temp.end());
+        if (t_min <= nn_window) isActive = true;
+    }
+
+    nn_mask_[y][x] = t;
+    x_prev = x;
+    y_prev = y;
+    p_prev = p;
+
+    return isActive;
 }
 
 /*int main() {

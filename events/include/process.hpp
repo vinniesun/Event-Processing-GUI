@@ -43,4 +43,7 @@ void update_sae(std::vector<std::vector<int>> &sae, std::string mode, int32_t x,
 void refractoryFiltering(Events &currentEvent, Events &outputEvent, int ref_period);
 void nnFiltering(Events &currentEvent, Events &outputEvent, int nn_window);
 
+bool refractoryFiltering_live(std::vector<std::vector<int>> &ref_mask_, const int x, const int y, const int t, const bool p, const int ref_period);
+bool nnFiltering_live(std::vector<std::vector<int>> &nn_mask_, const int x, const int y, const int t, const bool p, int &x_prev, int &y_prev, int &p_prev, const int max_x, const int max_y, const int nn_window);
+
 #endif

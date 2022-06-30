@@ -2,8 +2,11 @@
 
 #include <iostream>
 
-void progressBar(int total, int current) {
-    double ratio = ((double)current / (double)total)*100;
+void progressBar(int start, int end, int current) {
+    int total = end - start;
+    int current_ = current - start;
+    // std::cout << total << ", " << current_ << std::endl;
+    double ratio = ((double)current_ / (double)total)*100;
     std::cout.precision(3);
     std::cout << "                                       \r";
     std::cout << "..." << ratio << "%\r" << std::flush;
