@@ -255,12 +255,6 @@ int main(int, char**)
             HelpMarker("Enter the Number of Events you wish to process.\n"
                        "The default value is -1, which indicates all events will be processed.");
 
-            // ImGui::InputInt("Frame Height", &height);
-            // ImGui::SameLine();
-            // HelpMarker("Enter the height of the Event Camera");
-            // ImGui::InputInt("Frame Width", &width);
-            // ImGui::SameLine();
-            // HelpMarker("Enter the width of the Event Camera");
             ImGui::Checkbox("DAVIS240 Camera", &davis240);
             ImGui::SameLine();
             HelpMarker("Check this box if your event file is generated from a DAVIS240 Camera.\n");
@@ -279,6 +273,13 @@ int main(int, char**)
                 width = 346;
             }
 
+            ImGui::InputInt("Frame Height", &height);
+            ImGui::SameLine();
+            HelpMarker("Enter the height of the Event Camera");
+            ImGui::InputInt("Frame Width", &width);
+            ImGui::SameLine();
+            HelpMarker("Enter the width of the Event Camera");
+
             ImGui::InputInt("Refractory Period (us)", &ref_period);
             ImGui::SameLine();
             HelpMarker("Enter the refractory period (in us) for Refractory Filtering.\n"
@@ -294,7 +295,26 @@ int main(int, char**)
             HelpMarker("Enter the ktos value for determining TOS window size\n"
                        "If the value is left at zero, then TOS is not being used."); 
 
-            if (ImGui::Button("Start Process")) start_processing = true;
+            if (ImGui::Button("Start Process")) {
+                if (!davis240 || !davis346) {
+                    
+                    start_processing = false;
+
+                    ImGui::OpenPopup("Camera Not Chosen");
+                } else start_processing = true;
+            }
+
+            ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+            if (ImGui::BeginPopupModal("Camera Not Chosen", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text("The Camera Model was not chosen. Please select Camera Model before using processing!\n");
+                ImGui::Separator();
+                ImGui::SetItemDefaultFocus();
+                if (ImGui::Button("OK", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+                
+                ImGui::EndPopup();
+            }
+
             if (start_processing) {
                 ImGui::SameLine();
                 ImGui::Text("Processing Event File!");
@@ -319,7 +339,7 @@ int main(int, char**)
 
         if (gui_status) {
             ImGui::SetNextWindowSize(ImVec2(0,0));
-            ImGui::SetNextWindowPos(ImVec2(0,515), ImGuiCond_Once);
+            ImGui::SetNextWindowPos(ImVec2(0,537), ImGuiCond_Once);
 
             ImVec2 screen_pos = ImGui::GetCursorPos();
 
