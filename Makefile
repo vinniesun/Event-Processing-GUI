@@ -30,7 +30,7 @@ OBJS = $(addsuffix .o, $(basename $(notdir $(SOURCES))))
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
-CXXFLAGS = -std=c++11 -I$(IMGUI_DIR)/include -I$(IMGUI_DIR)/backends -I$(EVENT_DIR)/include
+CXXFLAGS = -std=c++11 -I$(IMGUI_DIR)/include -I$(IMGUI_DIR)/backends -I$(EVENT_DIR)/include -mmacosx-version-min=12.2
 # CXXFLAGS for Intel Mac
 #CXXFLAGS += -I/usr/local/Cellar/eigen/3.4.0_1/include/eigen3/ -I/usr/local/Cellar/opencv/4.5.5_1/include/opencv4/
 # CXXFLAGS for M1 Mac

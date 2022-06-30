@@ -67,15 +67,19 @@ Events preprocess_file(const std::string &filename_, const int &height_, const i
             Events ref_event;
             refractoryFiltering(input_event, ref_event, ref_period_);
             ref_event.event_count = ref_event.x.size();
+            std::cout << "Here" << std::endl;
 
             nnFiltering(ref_event, process_, nn_window_);
             process_.event_count = process_.x.size();
+            std::cout << "Here2" << std::endl;
             ref_event.~Events();
         } else if (ref_period_) {
             refractoryFiltering(input_event, process_, ref_period_);
+            std::cout << "Here3" << std::endl;
             process_.event_count = process_.x.size();
         } else if (nn_window_) {
             refractoryFiltering(input_event, process_, nn_window_);
+            std::cout << "Here4" << std::endl;
             process_.event_count = process_.x.size();
         }
 
@@ -139,13 +143,14 @@ int main(int, char**)
     static bool show_setting = true;                // Display the processing setting window
 
     static int frame = 1;                           // Frame determines which frame of the images should be displayed
+    static int frame_debug = 1;
     static int time_window = 0;                     // The time window for how long (in us) events should be accumulated for to generate a frame
     static int height = 0;                          // The height of the Event Camera
     static int width = 0;                           // The width of the Event Camera
     static int ref_period = 0;                      // The refractory period for Refractory Filtering
     static int nn_window = 0;                       // The time window for Nearest Neighbourhood Filtering
     static int no_of_events = -1;                   // The value determines number of events that will be processed
-    volatile int event_no = 0;                        // The current event number to process
+    static int event_no = 0;                        // The current event number to process
     static int ktos = 0;
     static int ttos = 0;
     static int prev_time = 0;
@@ -158,6 +163,9 @@ int main(int, char**)
     static bool display_live = false;               // This flag indicates whether the events will be processed in a live manner or post-processed.
     static bool display_processed = false;
     static bool preprocessing = false;               // This flag indicates if we need to preprocess the event txt file.
+    static bool reset = false;
+    static bool davis240 = false;                   // This flag indicates that the input event file is generated with a DAVIS240
+    static bool davis346 = false;                   // This flag indicates that the input event file is generated iwth a DAVIS346
 
     static std::string filename = "";        // The path to the event text file
     static std::string recon_path = "";      // The reconstructed images folder's path
@@ -247,19 +255,36 @@ int main(int, char**)
             HelpMarker("Enter the Number of Events you wish to process.\n"
                        "The default value is -1, which indicates all events will be processed.");
 
-            ImGui::InputInt("Frame Height", &height);
+            // ImGui::InputInt("Frame Height", &height);
+            // ImGui::SameLine();
+            // HelpMarker("Enter the height of the Event Camera");
+            // ImGui::InputInt("Frame Width", &width);
+            // ImGui::SameLine();
+            // HelpMarker("Enter the width of the Event Camera");
+            ImGui::Checkbox("DAVIS240 Camera", &davis240);
             ImGui::SameLine();
-            HelpMarker("Enter the height of the Event Camera");
-            ImGui::InputInt("Frame Width", &width);
+            HelpMarker("Check this box if your event file is generated from a DAVIS240 Camera.\n");
+            if (davis240) {
+                davis346 = false;
+                height = 180;
+                width = 240;
+            }
             ImGui::SameLine();
-            HelpMarker("Enter the width of the Event Camera");
+            ImGui::Checkbox("DAVIS346 Camera", &davis346);
+            ImGui::SameLine();
+            HelpMarker("Check this box if your event file is generated from a DAVIS346 Camera.\n");
+            if (davis346) {
+                davis240 = false;
+                height = 260;
+                width = 346;
+            }
 
-            ImGui::InputInt("Refractory Period", &ref_period);
+            ImGui::InputInt("Refractory Period (us)", &ref_period);
             ImGui::SameLine();
             HelpMarker("Enter the refractory period (in us) for Refractory Filtering.\n"
                        "If the value is left at zero, there will be no Refractory Filtering.");
 
-            ImGui::InputInt("Nearest Neighbourhood Window", &nn_window);
+            ImGui::InputInt("Nearest Neighbourhood Window (us)", &nn_window);
             ImGui::SameLine();
             HelpMarker("Enter the time window (in us) for Nearest Neighbourhood Filtering.\n"
                        "If the value is left at zero, there will be no Nearest Neighbourhood Filtering.");
@@ -284,6 +309,8 @@ int main(int, char**)
                 ImGui::Text("Stopped Processing Event File!");
             }
 
+            if (ImGui::Button("Reset Parameters")) reset = true;
+
             ImVec2 windowSize = ImGui::GetWindowSize();
             ImGui::Text("Current window size is x: %.1f, y: %.1f", windowSize.x, windowSize.y);
 
@@ -292,14 +319,15 @@ int main(int, char**)
 
         if (gui_status) {
             ImGui::SetNextWindowSize(ImVec2(0,0));
-            ImGui::SetNextWindowPos(ImVec2(0,500), ImGuiCond_Once);
+            ImGui::SetNextWindowPos(ImVec2(0,515), ImGuiCond_Once);
+
+            ImVec2 screen_pos = ImGui::GetCursorPos();
 
             ImGui::Begin("GUI Status", &gui_status);
 
             ImGui::Text("Current average framerate is %.1f FPS", ImGui::GetIO().Framerate); // Dear ImGUI calculate the average framerate over the last 120 frames.
 
-            // ImVec2 screen_pos = ImGui::GetCursorScreenPos();
-            // ImGui::Text("Current cursor position is %.1f,, %.1f", screen_pos.x, screen_pos.y);
+            ImGui::Text("Current cursor position is %d, %d", screen_pos.x, screen_pos.y);
 
             ImGui::End();
         }
@@ -321,7 +349,7 @@ int main(int, char**)
                 // For testing, use:
                 // /Users/vincent/Desktop/CityUHK/Event_Process/Event_Camera_Dataset/shapes_rotation/events.txt
                 ImGui::SetNextWindowSize(ImVec2(0,0));
-                ImGui::SetNextWindowPos(ImVec2(699,400), ImGuiCond_Once);
+                ImGui::SetNextWindowPos(ImVec2(799,400), ImGuiCond_Once);
 
                 ImGui::Begin("Pre-processed Events", &display_live);
 
@@ -381,9 +409,6 @@ int main(int, char**)
                 }
                 ImGui::End();
             }
-        } else {
-            preprocessing = true;
-            display_processed = false;
         }
 
         // Window for showing the reconstructed images
@@ -391,7 +416,7 @@ int main(int, char**)
             // For testing, use:
             // /Users/vincent/Desktop/CityUHK/Event_Process/Hashing/Code/Python/Shapes_Rotation_Ground_Truth/
             ImGui::SetNextWindowSize(ImVec2(0,0), ImGuiCond_Once);
-            ImGui::SetNextWindowPos(ImVec2(699,0), ImGuiCond_Once);
+            ImGui::SetNextWindowPos(ImVec2(799,0), ImGuiCond_Once);
             
             ImGui::Begin("Reconstructed Images", &display_reconstructed);
 
@@ -399,6 +424,7 @@ int main(int, char**)
                 ImGui::Text("Reconstructed Folder's Path was not provided!!!");
                 ImGui::End();
             } else{
+                ImGui::Text("Current Frame is: %d", frame_debug);
                 cv::Mat image = cv::imread(recon_path + std::to_string(frame) + ".jpg", cv::IMREAD_COLOR);
                 if (image.empty()) return -1;
 
@@ -420,9 +446,37 @@ int main(int, char**)
                 if (frame%1530 == 0) frame = 1;
                 else frame++;
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+                frame_debug++;
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(33)); // This forces the display framerate to around 25~30FPS
             }
         } else frame = 1;
+
+        if (reset) {
+            on_off_check = false;
+            tos_check = false;
+            start_processing = false;
+            display_reconstructed = false;
+            display_live = false;
+            display_processed = false;
+            preprocessing = false;
+            reset = false;
+            davis240 = false;
+            davis346 = false;
+
+            frame = 1;
+            time_window = 0;
+            height = 0;
+            width = 0;
+            ref_period = 0;
+            nn_window = 0;
+            no_of_events = -1;
+            event_no = 0;
+            ktos = 0;
+            ttos = 0;
+            prev_time = 0;
+            quant = 0;
+        }
 
         // Rendering
         ImGui::Render();
