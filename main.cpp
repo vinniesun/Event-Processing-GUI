@@ -118,7 +118,7 @@ int main(int, char**)
 #endif
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "OpenCV Test", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "Event Processing", NULL, NULL);
     if (window == NULL)
         return 1;
     glfwMakeContextCurrent(window);
@@ -162,17 +162,28 @@ int main(int, char**)
     static bool display_reconstructed = false;      // This flag indicates whether the reconstructed images should be displayed
     static bool display_live = false;               // This flag indicates whether the events will be processed in a live manner or post-processed.
     static bool display_processed = false;
-    static bool preprocessing = false;               // This flag indicates if we need to preprocess the event txt file.
+    static bool preprocessing = false;              // This flag indicates if we need to preprocess the event txt file.
     static bool reset = false;
     static bool davis240 = false;                   // This flag indicates that the input event file is generated with a DAVIS240
     static bool davis346 = false;                   // This flag indicates that the input event file is generated iwth a DAVIS346
+    static bool first_recon = true;
+    static bool first_live = true;
 
-    static std::string filename = "";        // The path to the event text file
-    static std::string recon_path = "";      // The reconstructed images folder's path
+    static std::string filename = "";               // The path to the event text file
+    static std::string recon_path = "";             // The reconstructed images folder's path
 
     static Events process_events;
     static cv::Mat surface_area;
     static std::string mode = "";
+
+    GLuint texture, texture_recon;
+    cv::Mat image, image_recon;
+
+    glGenTextures(1, &texture_recon);
+    glBindTexture(GL_TEXTURE_2D, texture_recon);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -296,7 +307,7 @@ int main(int, char**)
                        "If the value is left at zero, then TOS is not being used."); 
 
             if (ImGui::Button("Start Process")) {
-                if (!davis240 || !davis346) {
+                if (!(davis240 || davis346)) {
                     
                     start_processing = false;
 
@@ -323,11 +334,15 @@ int main(int, char**)
                 ImGui::Text("\t\t\t\t\t");
             }
 
-            if (ImGui::Button("Stop Process")) start_processing = false;
-            if (!start_processing) {
-                ImGui::SameLine();
-                ImGui::Text("Stopped Processing Event File!");
+            if (ImGui::Button("Stop Process")) {
+                start_processing = false;
+                display_reconstructed = false;
+                preprocessing = false;
             }
+            // if (!start_processing) {
+            //     ImGui::SameLine();
+            //     ImGui::Text("Stopped Processing Event File!");
+            // }
 
             if (ImGui::Button("Reset Parameters")) reset = true;
 
@@ -341,13 +356,13 @@ int main(int, char**)
             ImGui::SetNextWindowSize(ImVec2(0,0));
             ImGui::SetNextWindowPos(ImVec2(0,537), ImGuiCond_Once);
 
-            ImVec2 screen_pos = ImGui::GetCursorPos();
-
             ImGui::Begin("GUI Status", &gui_status);
 
             ImGui::Text("Current average framerate is %.1f FPS", ImGui::GetIO().Framerate); // Dear ImGUI calculate the average framerate over the last 120 frames.
-
-            ImGui::Text("Current cursor position is %d, %d", screen_pos.x, screen_pos.y);
+            
+            // GetMousePos() gets the current mouse's coordinate relative to the window's top left corner, which is 0, 0
+            ImVec2 screen_pos = ImGui::GetMousePos();
+            ImGui::Text("Current mouse position is %0.0f, %0.0f", screen_pos.x, screen_pos.y);
 
             ImGui::End();
         }
@@ -377,6 +392,30 @@ int main(int, char**)
                     ImGui::Text("Event txt Filename not provided!");
                 } else {
                     if (preprocessing) {
+                        image = cv::Mat(height, width, CV_8UC1, cv::Scalar(0));
+                        glGenTextures(1, &texture);
+                        glBindTexture(GL_TEXTURE_2D, texture);
+
+                        // glTexParameteri(GLenum target, GLenum pname, GLfloat param):
+                        // Sets the texture parameter.
+                        // "target" Specifies the target to which the texture is bound for glTexParameter function.
+                        // "pname" Specifies the symbolic name of a single-valued texture parameter
+                        // "param" Specifies the value of pname
+                        // GL_TEXTURE_MIN_FILTER:
+                        // The texture minifying function is used whenever the level-of-detail function used when sampling from teh texture determines that the texture
+                        // should be minified. Functions include: GL_NEAREST, GL_LINEAR, GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR
+                        // GL_TEXTURE_MAG_FILTER:
+                        // The texture magnification function is used whenever the level-of-detail function used when sampling from the texture determines that the texture should be magnified.
+                        // The Functions include: GL_NEAREST, GL_LINEAR
+                        // glPixelStorei:
+                        // Sets pixel storage modes taht affect the operation of subsequent glReadPixels as well as the unpacking of texture patterns (like glTextImage2D & glTexSubImage2D)
+                        // These settings stick with the texture that's bound. You only need to set them once.
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                        // Allocate memory on the graphics card for the texture. It's fine if image is empty, the texture will just appear black until you update it.
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
+
                         ttos = 2*(2*ktos + 1);
 
                         if (tos_check) {
@@ -406,17 +445,11 @@ int main(int, char**)
 
                         update_sae(surface_area, mode, x, y, t, time_window, quant, prev_time, ktos, ttos, width, height);
 
-                        cv::Mat image;
                         cv::cvtColor(surface_area, image, cv::COLOR_BGR2RGBA);
 
-                        GLuint texture;
-                        glGenTextures(1, &texture);
                         glBindTexture(GL_TEXTURE_2D, texture);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
                         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
-                        ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture)), ImVec2(image.cols, image.rows));
+                        ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture)), ImVec2(width, height));
 
                         prev_time = t; // Update prev_time
                         event_no++;
@@ -445,30 +478,29 @@ int main(int, char**)
                 ImGui::End();
             } else{
                 ImGui::Text("Current Frame is: %d", frame_debug);
-                cv::Mat image = cv::imread(recon_path + std::to_string(frame) + ".jpg", cv::IMREAD_COLOR);
-                if (image.empty()) return -1;
+                image_recon = cv::imread(recon_path + std::to_string(frame) + ".jpg", cv::IMREAD_COLOR);
+                if (image_recon.empty()) return -1;
 
-                cv::cvtColor(image, image, cv::COLOR_BGR2RGBA);
+                cv::cvtColor(image_recon, image_recon, cv::COLOR_BGR2RGBA);
+
+                if (first_recon) {
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_recon.cols, image_recon.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_recon.data);
+                    first_recon = false;
+                }
 
                 ImGui::SetNextWindowSize(ImVec2(0,0));
-                //ImGui::SetNextWindowPos(ImVec2(0,0), ImGuiCond_Once);
 
-                GLuint texture;
-                glGenTextures(1, &texture);
-                glBindTexture(GL_TEXTURE_2D, texture);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
-                ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture)), ImVec2(image.cols, image.rows));
+                glBindTexture(GL_TEXTURE_2D, texture_recon);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_recon.cols, image_recon.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_recon.data);
+                ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture_recon)), ImVec2(image_recon.cols, image_recon.rows));
                 ImGui::End();
 
                 if (frame%1530 == 0) frame = 1;
                 else frame++;
 
-                frame_debug++;
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(33)); // This forces the display framerate to around 25~30FPS
+                frame_debug++; // Thi displays the total number of frames displayed
+                // This forces the display framerate to around 25~30FPS when displaying reconstructed images
+                // std::this_thread::sleep_for(std::chrono::milliseconds(33));
             }
         } else frame = 1;
 
@@ -483,8 +515,14 @@ int main(int, char**)
             reset = false;
             davis240 = false;
             davis346 = false;
+            first_recon = true;
+            first_live = true;
+
+            recon_path = "";
+            filename = "";
 
             frame = 1;
+            frame_debug = 1;
             time_window = 0;
             height = 0;
             width = 0;
@@ -496,6 +534,7 @@ int main(int, char**)
             ttos = 0;
             prev_time = 0;
             quant = 0;
+            glDeleteTextures(1, &texture);
         }
 
         // Rendering
