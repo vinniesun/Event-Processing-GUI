@@ -87,6 +87,98 @@ Events preprocess_file(const std::string &filename_, const int &height_, const i
     }
 }
 
+void preprocess_initialisation(const int width, const int height, cv::Mat &image, cv::Mat &surface_area,
+                               bool &tos_check, int &ttos, int &ktos, GLuint &texture, Events &process_events,
+                               const std::string filename, const int ref_period, const int nn_window, std::string &mode) {
+    image = cv::Mat(height, width, CV_8UC1, cv::Scalar(0));
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // glTexParameteri(GLenum target, GLenum pname, GLfloat param):
+    // Sets the texture parameter.
+    // "target" Specifies the target to which the texture is bound for glTexParameter function.
+    // "pname" Specifies the symbolic name of a single-valued texture parameter
+    // "param" Specifies the value of pname
+    // GL_TEXTURE_MIN_FILTER:
+    // The texture minifying function is used whenever the level-of-detail function used when sampling from teh texture determines that the texture
+    // should be minified. Functions include: GL_NEAREST, GL_LINEAR, GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR
+    // GL_TEXTURE_MAG_FILTER:
+    // The texture magnification function is used whenever the level-of-detail function used when sampling from the texture determines that the texture should be magnified.
+    // The Functions include: GL_NEAREST, GL_LINEAR
+    // glPixelStorei:
+    // Sets pixel storage modes taht affect the operation of subsequent glReadPixels as well as the unpacking of texture patterns (like glTextImage2D & glTexSubImage2D)
+    // These settings stick with the texture that's bound. You only need to set them once.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    // Allocate memory on the graphics card for the texture. It's fine if image is empty, the texture will just appear black until you update it.
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
+
+    ttos = 2*(2*ktos + 1);
+
+    if (tos_check) {
+        mode = "TOS";
+        surface_area = cv::Mat(height, width, CV_8UC1, cv::Scalar(0));
+        std::cout << "TOS" << std::endl;
+    } else {
+        mode = "timestamp";
+        surface_area = cv::Mat(height, width, CV_32SC1, cv::Scalar(0));
+        std::cout << "timestamp" << std::endl;
+    }
+    process_events = preprocess_file(filename, height, width, ref_period, nn_window);
+    std::cout << process_events.event_count << std::endl;
+}
+
+void preprocess_run(Events &process_events, int &event_no, int &prev_time, GLuint &texture, cv::Mat &image,
+                    cv::Mat &surface_area, const int width, const int height, const int no_of_events,
+                    const std::string mode, int time_window, int quant, int ktos, int ttos, bool &preprocessing, bool &display_processed) {
+    const int pol = process_events.p[event_no] ? 1:0;
+    int32_t x = process_events.x[event_no];
+    int32_t y = process_events.y[event_no];
+    int32_t t = process_events.t[event_no];
+
+    update_sae(surface_area, mode, x, y, t, time_window, quant, prev_time, ktos, ttos, width, height);
+
+    cv::cvtColor(surface_area, image, cv::COLOR_BGR2RGBA);
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
+    ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture)), ImVec2(width, height));
+
+    prev_time = t; // Update prev_time
+    event_no++;
+
+    if (event_no >= process_events.event_count || (event_no >= no_of_events && no_of_events != -1)) {
+        preprocessing = true;
+        display_processed = false;
+    }
+}
+
+int run_display_reconstructed(cv::Mat &image_recon, std::string recon_path, int &frame, int &frame_debug, bool &first_recon, GLuint &texture_recon) {
+    image_recon = cv::imread(recon_path + std::to_string(frame) + ".jpg", cv::IMREAD_COLOR);
+    if (image_recon.empty()) return 0;
+
+    cv::cvtColor(image_recon, image_recon, cv::COLOR_BGR2RGBA);
+
+    if (first_recon) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_recon.cols, image_recon.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_recon.data);
+        first_recon = false;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(0,0));
+
+    glBindTexture(GL_TEXTURE_2D, texture_recon);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_recon.cols, image_recon.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_recon.data);
+    ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture_recon)), ImVec2(image_recon.cols, image_recon.rows));
+    
+
+    if (frame%1530 == 0) frame = 1;
+    else frame++;
+
+    frame_debug++; // Thi displays the total number of frames displayed
+    return 1;
+}
+
 int main(int, char**)
 {
     // Setup window
@@ -392,43 +484,7 @@ int main(int, char**)
                     ImGui::Text("Event txt Filename not provided!");
                 } else {
                     if (preprocessing) {
-                        image = cv::Mat(height, width, CV_8UC1, cv::Scalar(0));
-                        glGenTextures(1, &texture);
-                        glBindTexture(GL_TEXTURE_2D, texture);
-
-                        // glTexParameteri(GLenum target, GLenum pname, GLfloat param):
-                        // Sets the texture parameter.
-                        // "target" Specifies the target to which the texture is bound for glTexParameter function.
-                        // "pname" Specifies the symbolic name of a single-valued texture parameter
-                        // "param" Specifies the value of pname
-                        // GL_TEXTURE_MIN_FILTER:
-                        // The texture minifying function is used whenever the level-of-detail function used when sampling from teh texture determines that the texture
-                        // should be minified. Functions include: GL_NEAREST, GL_LINEAR, GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR
-                        // GL_TEXTURE_MAG_FILTER:
-                        // The texture magnification function is used whenever the level-of-detail function used when sampling from the texture determines that the texture should be magnified.
-                        // The Functions include: GL_NEAREST, GL_LINEAR
-                        // glPixelStorei:
-                        // Sets pixel storage modes taht affect the operation of subsequent glReadPixels as well as the unpacking of texture patterns (like glTextImage2D & glTexSubImage2D)
-                        // These settings stick with the texture that's bound. You only need to set them once.
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-                        // Allocate memory on the graphics card for the texture. It's fine if image is empty, the texture will just appear black until you update it.
-                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
-
-                        ttos = 2*(2*ktos + 1);
-
-                        if (tos_check) {
-                            mode = "TOS";
-                            surface_area = cv::Mat(height, width, CV_8UC1, cv::Scalar(0));
-                            std::cout << "TOS" << std::endl;
-                        } else {
-                            mode = "timestamp";
-                            surface_area = cv::Mat(height, width, CV_32SC1, cv::Scalar(0));
-                            std::cout << "timestamp" << std::endl;
-                        }
-                        process_events = preprocess_file(filename, height, width, ref_period, nn_window);
-                        std::cout << process_events.event_count << std::endl;
+                        preprocess_initialisation(width, height, image, surface_area, tos_check, ttos, ktos, texture, process_events, filename, ref_period, nn_window, mode);
                         
                         preprocessing = false;
                     } else {
@@ -437,26 +493,13 @@ int main(int, char**)
                         else if (nn_window) ImGui::Text("Nearest Neighbourhood Filtering!");
                         else if (ref_period && nn_window) ImGui::Text("Refractory Filtering and Nearest Neighbourhood Filtering!");
                         ImGui::Text("Event Number: %d", event_no);
-                        // Display Process
-                        const int pol = process_events.p[event_no] ? 1:0;
-                        int32_t x = process_events.x[event_no];
-                        int32_t y = process_events.y[event_no];
-                        int32_t t = process_events.t[event_no];
 
-                        update_sae(surface_area, mode, x, y, t, time_window, quant, prev_time, ktos, ttos, width, height);
-
-                        cv::cvtColor(surface_area, image, cv::COLOR_BGR2RGBA);
-
-                        glBindTexture(GL_TEXTURE_2D, texture);
-                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
-                        ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture)), ImVec2(width, height));
-
-                        prev_time = t; // Update prev_time
-                        event_no++;
-
-                        if (event_no >= process_events.event_count || (event_no >= no_of_events && no_of_events != -1)) {
-                            preprocessing = true;
-                            display_processed = false;
+                        if (event_no >= no_of_events && no_of_events != -1) {
+                            ImGui::Text("Finished");
+                        } else {
+                            // Display Process
+                            preprocess_run(process_events, event_no, prev_time, texture, image, surface_area, width, height, no_of_events,
+                                           mode, time_window, quant, ktos, ttos, preprocessing, display_processed);
                         }
                     }
                 }
@@ -478,29 +521,15 @@ int main(int, char**)
                 ImGui::End();
             } else{
                 ImGui::Text("Current Frame is: %d", frame_debug);
-                image_recon = cv::imread(recon_path + std::to_string(frame) + ".jpg", cv::IMREAD_COLOR);
-                if (image_recon.empty()) return -1;
 
-                cv::cvtColor(image_recon, image_recon, cv::COLOR_BGR2RGBA);
+                int status = run_display_reconstructed(image_recon, recon_path, frame, frame_debug, first_recon, texture_recon);
 
-                if (first_recon) {
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_recon.cols, image_recon.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_recon.data);
-                    first_recon = false;
-                }
+                if (!status) std::cout << "Invalid Data Path" << std::endl;
 
-                ImGui::SetNextWindowSize(ImVec2(0,0));
-
-                glBindTexture(GL_TEXTURE_2D, texture_recon);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_recon.cols, image_recon.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_recon.data);
-                ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture_recon)), ImVec2(image_recon.cols, image_recon.rows));
                 ImGui::End();
 
-                if (frame%1530 == 0) frame = 1;
-                else frame++;
-
-                frame_debug++; // Thi displays the total number of frames displayed
                 // This forces the display framerate to around 25~30FPS when displaying reconstructed images
-                // std::this_thread::sleep_for(std::chrono::milliseconds(33));
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
             }
         } else frame = 1;
 
