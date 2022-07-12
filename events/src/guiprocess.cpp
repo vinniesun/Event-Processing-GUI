@@ -1,46 +1,46 @@
 #include "guiprocess.hpp"
 
 guiProcess::guiProcess() {
-    gui_status = true;                  // Display the current status of the GUI
-    show_setting = true;                // Display the processing setting window
+    gui_status = true;
+    show_setting = true;
 
-    frame = 1;                           // Frame determines which frame of the images should be displayed
+    frame = 1;
     frame_debug = 1;
-    time_window = 0;                     // The time window for how long (in us) events should be accumulated for to generate a frame
-    height = 0;                          // The height of the Event Camera
-    width = 0;                           // The width of the Event Camera
-    ref_period = 0;                      // The refractory period for Refractory Filtering
-    nn_window = 0;                       // The time window for Nearest Neighbourhood Filtering
-    no_of_events = -1;                   // The value determines number of events that will be processed
-    event_no = 0;                        // The current event number to process
-    ktos = 0;                            // The ktos parameter for updating TOS
-    ttos = 0;                            // The ttos parameter for updating TOS
-    prev_time = 0;                       // This variable keeps track of the timestamp of the previous event
-    quant = 0;                           // This is the quant variable for updating SAE
+    time_window = 0;
+    height = 0;
+    width = 0;
+    ref_period = 0;
+    nn_window = 0;
+    no_of_events = -1;
+    event_no = 0;
+    ktos = 0;
+    ttos = 0;
+    prev_time = 0;
+    quant = 0;
 
-    on_off_check = false;               // This flag checks if On and Off events should be stored separately or together in a Time Surface
-    tos_check = false;                  // This flag checks if the events are to be stored in a TOS (when true) or a Time Surface (when false, the default)
-    start_processing = false;           // This flag indicates whether the event text file will be processed or not.
-    display_reconstructed = false;      // This flag indicates whether the reconstructed images should be displayed
-    display_live = false;               // This flag indicates whether the events will be processed in a live manner.
-    display_processed = false;          // This flag indicates whether the event is displayed post-processed.
-    preprocessing = false;              // This flag indicates if we need to preprocess the event txt file.
-    reset = false;                      // This flag indicates if the class variables are to be reset.
-    davis240 = false;                   // This flag indicates that the input event file is generated with a DAVIS240
-    davis346 = false;                   // This flag indicates that the input event file is generated iwth a DAVIS346
-    first_recon = true;                 // This flag checks if this is the first reconstructed frame to be displayed. If it is, then the OpenGL texture object will be updated
-    first_live = true;                  // This flag is currently unused, might delete later
+    on_off_check = false;
+    tos_check = false;
+    start_processing = false;
+    display_reconstructed = false;
+    display_live = false;
+    display_processed = false;
+    preprocessing = false;
+    reset = false;
+    davis240 = false;
+    davis346 = false;
+    first_recon = true;
+    first_live = true;
 
-    filename = "";               // The path to the event text file
-    recon_path = "";             // The reconstructed images folder's path
+    filename = "";
+    recon_path = "";
 
-    mode = "";                   // This string indicates what kind of Time Surface Update scheme that's used.
+    mode = "";
 
-    line_no = 0;                         // This keeps track of the number of lines read by the fstream object
+    line_no = 0;
 
-    x_prev = 0;                          // Used by NN filtering
-    y_prev = 0;                          // Used by NN filtering
-    p_prev = 0;                          // Used by NN filtering
+    x_prev = 0;
+    y_prev = 0;
+    p_prev = 0;
 
     glGenTextures(1, &texture_recon);
     glBindTexture(GL_TEXTURE_2D, texture_recon);
