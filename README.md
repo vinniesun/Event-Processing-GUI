@@ -2,9 +2,9 @@
 ## This project is a WIP
 
 This repository contain a GUI made in C++ using Dear ImGui library with GLFW/OpenGL3 as it backend.
-The purpose of this GUI is to help user visualise the event data stored as txt file from https://rpg.ifi.uzh.ch/davis_data.html.
+The original purpose of this GUI is to help the user visualise event data from https://rpg.ifi.uzh.ch/davis_data.html.
 
-User can also convert any of their event data file into the same format for this GUI.
+User can also convert any of their event data into the same format as the txt file from the link above for this GUI.
 
 The txt file format can be seen below:
 ```
