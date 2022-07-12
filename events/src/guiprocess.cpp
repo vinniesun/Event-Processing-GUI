@@ -225,7 +225,7 @@ void guiProcess::live_process_run() {
         if (!refractoryFiltering_live(ref_mask, x, y, t, p, ref_period)) {
             line_no++;
 
-            cv::cvtColor(surface_area, image, cv::COLOR_BGR2RGBA);
+            updateImage();
 
             glBindTexture(GL_TEXTURE_2D, texture);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
@@ -240,7 +240,7 @@ void guiProcess::live_process_run() {
         if (!nnFiltering_live(nn_mask, x, y, t, p, x_prev, y_prev, p_prev, width, height, nn_window)) {
             line_no++;
 
-            cv::cvtColor(surface_area, image, cv::COLOR_BGR2RGBA);
+            updateImage();
 
             glBindTexture(GL_TEXTURE_2D, texture);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
