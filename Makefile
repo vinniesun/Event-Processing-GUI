@@ -23,8 +23,9 @@ OFILE_DIR = ofile
 SOURCES = main.cpp
 SOURCES += $(IMGUI_DIR)/src/imgui.cpp $(IMGUI_DIR)/src/imgui_demo.cpp $(IMGUI_DIR)/src/imgui_draw.cpp $(IMGUI_DIR)/src/imgui_tables.cpp $(IMGUI_DIR)/src/imgui_widgets.cpp $(IMGUI_DIR)/src/imgui_stdlib.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
+SOURCES += $(EVENT_DIR)/src/guiprocess.cpp
 SOURCES += $(EVENT_DIR)/src/arcstar.cpp $(EVENT_DIR)/src/bloomfilter.cpp $(EVENT_DIR)/src/customharris.cpp $(EVENT_DIR)/src/efast.cpp $(EVENT_DIR)/src/luvharris.cpp
-SOURCES += $(EVENT_DIR)/src/process.cpp $(EVENT_DIR)/src/sfast.cpp
+SOURCES += $(EVENT_DIR)/src/process.cpp $(EVENT_DIR)/src/sfast.cpp 
 
 OBJS = $(addsuffix .o, $(basename $(notdir $(SOURCES))))
 UNAME_S := $(shell uname -s)
