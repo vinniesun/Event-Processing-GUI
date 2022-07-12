@@ -288,9 +288,9 @@ int main(int, char**)
                 ImGui::Begin("Live Event", &mainProcess.display_live);
 
                 if (!mainProcess.ref_period && !mainProcess.nn_window) ImGui::Text("No Filtering!");
+                else if (mainProcess.ref_period && mainProcess.nn_window) ImGui::Text("Refractory Filtering and Nearest Neighbourhood Filtering!");
                 else if (mainProcess.ref_period) ImGui::Text("Refractory Filtering!");
                 else if (mainProcess.nn_window) ImGui::Text("Nearest Neighbourhood Filtering!");
-                else if (mainProcess.ref_period && mainProcess.nn_window) ImGui::Text("Refractory Filtering and Nearest Neighbourhood Filtering!");
                 ImGui::Text("Event Number: %d", mainProcess.line_no);
 
                 // Process Event
@@ -316,9 +316,9 @@ int main(int, char**)
                         mainProcess.preprocessing = false;
                     } else {
                         if (!mainProcess.ref_period && !mainProcess.nn_window) ImGui::Text("No Filtering!");
+                        else if (mainProcess.ref_period && mainProcess.nn_window) ImGui::Text("Refractory Filtering and Nearest Neighbourhood Filtering!");
                         else if (mainProcess.ref_period) ImGui::Text("Refractory Filtering!");
                         else if (mainProcess.nn_window) ImGui::Text("Nearest Neighbourhood Filtering!");
-                        else if (mainProcess.ref_period && mainProcess.nn_window) ImGui::Text("Refractory Filtering and Nearest Neighbourhood Filtering!");
                         ImGui::Text("Event Number: %d", mainProcess.event_no);
 
                         if (mainProcess.event_no >= mainProcess.no_of_events && mainProcess.no_of_events != -1) {
