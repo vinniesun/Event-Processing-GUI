@@ -146,16 +146,19 @@ int main(int, char**)
             ImGui::SameLine();
             HelpMarker("This checks whether the event txt file will be processed in live fashion, i.e. the text file will be streamed in live.\n"
                        "If the Checkbox is checked, the events will be processed live.\n");
-
+            if (mainProcess.display_live) mainProcess.display_processed = false;
+            ImGui::SameLine();
             ImGui::Checkbox("Display Pre-Processing", &mainProcess.display_processed);
             ImGui::SameLine();
             HelpMarker("This checks whether the event txt file will be pre-processed before displaying.\n"
                        "If the Checkbox is checked, the events will be pre-processed.\n");
-            ImGui::SameLine();
+            if (mainProcess.display_processed) mainProcess.display_live = false;
+
             ImGui::Checkbox("Pre-Processing", &mainProcess.preprocessing);
             ImGui::SameLine();
             HelpMarker("This checks whether the event txt file will be pre-processed before displaying.\n"
                        "If the Checkbox is checked, the events will be pre-processed.\n");
+            if (mainProcess.display_live) mainProcess.preprocessing = false;
 
             ImGui::Text("Processing Options");
             ImGui::Checkbox("Separate On & Off Events", &mainProcess.on_off_check);
@@ -301,6 +304,12 @@ int main(int, char**)
             // Window for showing the live events
             if (mainProcess.display_live) {
                 ImGui::Begin("Live Event", &mainProcess.display_live);
+
+                if (!mainProcess.ref_period && !mainProcess.nn_window) ImGui::Text("No Filtering!");
+                else if (mainProcess.ref_period) ImGui::Text("Refractory Filtering!");
+                else if (mainProcess.nn_window) ImGui::Text("Nearest Neighbourhood Filtering!");
+                else if (mainProcess.ref_period && mainProcess.nn_window) ImGui::Text("Refractory Filtering and Nearest Neighbourhood Filtering!");
+                ImGui::Text("Event Number: %d", mainProcess.line_no);
 
                 // Process Event
                 if (mainProcess.event_file.is_open()) mainProcess.live_process_run();

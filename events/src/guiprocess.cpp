@@ -44,6 +44,20 @@ guiProcess::guiProcess() {
 
     glGenTextures(1, &texture_recon);
     glBindTexture(GL_TEXTURE_2D, texture_recon);
+    // glTexParameteri(GLenum target, GLenum pname, GLfloat param):
+    // Sets the texture parameter.
+    // "target" Specifies the target to which the texture is bound for glTexParameter function.
+    // "pname" Specifies the symbolic name of a single-valued texture parameter
+    // "param" Specifies the value of pname
+    // GL_TEXTURE_MIN_FILTER:
+    // The texture minifying function is used whenever the level-of-detail function used when sampling from teh texture determines that the texture
+    // should be minified. Functions include: GL_NEAREST, GL_LINEAR, GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR
+    // GL_TEXTURE_MAG_FILTER:
+    // The texture magnification function is used whenever the level-of-detail function used when sampling from the texture determines that the texture should be magnified.
+    // The Functions include: GL_NEAREST, GL_LINEAR
+    // glPixelStorei:
+    // Sets pixel storage modes taht affect the operation of subsequent glReadPixels as well as the unpacking of texture patterns (like glTextImage2D & glTexSubImage2D)
+    // These settings stick with the texture that's bound. You only need to set them once.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
@@ -89,26 +103,7 @@ Events guiProcess::preprocess_file() {
 
 void guiProcess::preprocess_initialisation() {
     image = cv::Mat(height, width, CV_8UC1, cv::Scalar(0));
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
 
-    // glTexParameteri(GLenum target, GLenum pname, GLfloat param):
-    // Sets the texture parameter.
-    // "target" Specifies the target to which the texture is bound for glTexParameter function.
-    // "pname" Specifies the symbolic name of a single-valued texture parameter
-    // "param" Specifies the value of pname
-    // GL_TEXTURE_MIN_FILTER:
-    // The texture minifying function is used whenever the level-of-detail function used when sampling from teh texture determines that the texture
-    // should be minified. Functions include: GL_NEAREST, GL_LINEAR, GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR
-    // GL_TEXTURE_MAG_FILTER:
-    // The texture magnification function is used whenever the level-of-detail function used when sampling from the texture determines that the texture should be magnified.
-    // The Functions include: GL_NEAREST, GL_LINEAR
-    // glPixelStorei:
-    // Sets pixel storage modes taht affect the operation of subsequent glReadPixels as well as the unpacking of texture patterns (like glTextImage2D & glTexSubImage2D)
-    // These settings stick with the texture that's bound. You only need to set them once.
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     // Allocate memory on the graphics card for the texture. It's fine if image is empty, the texture will just appear black until you update it.
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
 
@@ -135,7 +130,7 @@ void guiProcess::preprocess_run() {
 
     update_sae(surface_area, mode, x, y, t, time_window, quant, prev_time, ktos, ttos, width, height);
 
-    cv::cvtColor(surface_area, image, cv::COLOR_BGR2RGBA);
+    updateImage();
 
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
@@ -257,7 +252,7 @@ void guiProcess::live_process_run() {
     
     update_sae(surface_area, mode, x, y, t, time_window, quant, prev_time, ktos, ttos, width, height);
 
-    cv::cvtColor(surface_area, image, cv::COLOR_BGR2RGBA);
+    updateImage();
 
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
@@ -297,7 +292,22 @@ void guiProcess::resetFunction() {
     ttos = 0;
     prev_time = 0;
     quant = 0;
+    line_no = 0;
     //glDeleteTextures(1, &texture);
 
     if (event_file.is_open()) event_file.close();
+}
+
+void guiProcess::updateImage() {
+    if (mode == "TOS") {
+        cv::cvtColor(surface_area, image, cv::COLOR_BGR2RGBA);
+    } else { // For normal timestamp version Time Surface
+        cv::Mat temp, heatmap;
+        // Normalise Timesurface value to uint8 range
+        cv::normalize(surface_area, temp, 0, 255, cv::NORM_MINMAX, CV_8U);
+        // Apply Colourmap to the normalised image to generate heatmap
+        cv::applyColorMap(temp, heatmap, cv::COLORMAP_JET);
+        // Store the heatmap in our image after converting image to RGBA format
+        cv::cvtColor(heatmap, image, cv::COLOR_BGR2RGBA);
+    }
 }

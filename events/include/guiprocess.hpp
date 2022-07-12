@@ -30,6 +30,7 @@ public:
     void live_process_initialisation();
     void live_process_run();
     void resetFunction();
+    void updateImage();
 
     bool gui_status;                     // Display the current status of the GUI
     bool show_setting;                   // Display the processing setting window
