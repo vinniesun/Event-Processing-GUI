@@ -42,3 +42,6 @@ As seen in the screenshot above, the GUI can process the event text file as thou
 As seen in the screenshot above, the GUI can also display reconstructed images frame by frame.
 * These reconstructed images are generated from events with the help of the tool, e2vid.
 * The GitHub link to e2vid is: https://github.com/uzh-rpg/rpg_e2vid.
+
+## Tools used to document this project
+* LICEcap (https://www.cockos.com/licecap/). LICEcap is used to help capture the GUI in action and saved as GIFs.
