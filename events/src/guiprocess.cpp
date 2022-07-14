@@ -4,7 +4,7 @@ guiProcess::guiProcess() {
     gui_status = true;
     show_setting = true;
 
-    frame = 1;
+    frame = 0;
     frame_debug = 1;
     time_window = 0;
     height = 0;
@@ -145,8 +145,34 @@ void guiProcess::preprocess_run() {
     }
 }
 
+bool sortCriteria(std::string s1, std::string s2) {
+    return s1 < s2;
+}
+
+void guiProcess::reconstructed_initialisation() {
+    DIR *dr;
+    struct dirent *en;
+
+    dr = opendir(recon_path.c_str()); // have to convert std::string to c string because opendir expects char*
+    if (dr) {
+        while ((en = readdir(dr)) != NULL) {
+            if (en->d_name[0] == '.' || !en->d_name) continue; // Ignore the "." and ".." file in Unix/Linux
+            if (strstr(en->d_name, ".jpg") || strstr(en->d_name, ".png")) { // We only want image files like .jpg or .png
+                std::stringstream ss;
+                std::string s;
+                ss << en->d_name;
+                ss >> s;
+                recon_files.push_back(s);
+            }
+        }
+        closedir(dr);
+    }
+    
+    sort(recon_files.begin(), recon_files.end(), sortCriteria);
+}
+
 int guiProcess::run_display_reconstructed() {
-    image_recon = cv::imread(recon_path + std::to_string(frame) + ".jpg", cv::IMREAD_COLOR);
+    image_recon = cv::imread(recon_path + recon_files[frame], cv::IMREAD_COLOR);
     if (image_recon.empty()) return 0;
 
     cv::cvtColor(image_recon, image_recon, cv::COLOR_BGR2RGBA);
@@ -161,12 +187,12 @@ int guiProcess::run_display_reconstructed() {
     glBindTexture(GL_TEXTURE_2D, texture_recon);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_recon.cols, image_recon.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_recon.data);
     ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(texture_recon)), ImVec2(image_recon.cols, image_recon.rows));
-    
 
-    if (frame%1530 == 0) frame = 1;
+    if ((frame+1) == recon_files.size()) frame = 0;
     else frame++;
 
     frame_debug++; // This displays the total number of frames displayed
+    
     return 1;
 }
 

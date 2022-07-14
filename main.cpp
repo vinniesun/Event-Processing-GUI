@@ -338,14 +338,15 @@ int main(int, char**)
         // Window for showing the reconstructed images
         if (mainProcess.display_reconstructed) {
             // For testing, use:
-            // /Users/vincent/Desktop/CityUHK/Event_Process/Hashing/Code/Python/Shapes_Rotation_Ground_Truth/
-            ImGui::SetNextWindowSize(ImVec2(0,0), ImGuiCond_Once);
+            // /Users/vincent/Desktop/CityUHK/Event_Process/Event_Camera_Dataset/shapes_rotation/reconstruction/
+            ImGui::SetNextWindowSize(ImVec2(mainProcess.width+20,mainProcess.height+60), ImGuiCond_Once);
             ImGui::SetNextWindowPos(ImVec2(799,0), ImGuiCond_Once);
             
             if (ImGui::Begin("Reconstructed Images", &mainProcess.display_reconstructed)) {
                 if (mainProcess.recon_path.empty()) {
                     ImGui::Text("Reconstructed Folder's Path was not provided!!!");
-                    ImGui::End();
+                } else if (mainProcess.recon_files.empty()) {
+                    mainProcess.reconstructed_initialisation();
                 } else{
                     ImGui::Text("Current Frame is: %d", mainProcess.frame_debug);
 
@@ -353,11 +354,10 @@ int main(int, char**)
 
                     if (!status) std::cout << "Invalid Data Path" << std::endl;
 
-                    ImGui::End();
-
                     // This forces the display framerate to around 25~30FPS when displaying reconstructed images
                     std::this_thread::sleep_for(std::chrono::milliseconds(33));
                 }
+                ImGui::End();
             }
         } else mainProcess.frame = 1;
 
